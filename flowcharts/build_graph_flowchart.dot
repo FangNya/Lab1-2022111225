@@ -1,0 +1,34 @@
+digraph BuildGraph {
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [color=blue];
+    rankdir=TB;
+
+    start [shape=oval, fillcolor=lightgreen, label="开始"];
+    readFile [label="读取文本文件"];
+    init [label="初始化数据结构\n(wordToIndex, indexToWord, adjacencyList)"];
+    processLine [label="处理文本行"];
+    extractWords [label="提取单词"];
+    prevWordNull [shape=diamond, fillcolor=lightyellow, label="previousWord\n是否为null?"];
+    addNode [label="将单词添加到图中"];
+    addEdge [label="添加边(previousWord → currentWord)"];
+    updatePrevWord [label="previousWord = currentWord"];
+    moreWords [shape=diamond, fillcolor=lightyellow, label="还有更多单词?"];
+    moreLines [shape=diamond, fillcolor=lightyellow, label="还有更多行?"];
+    createMatrix [label="创建邻接矩阵"];
+    end [shape=oval, fillcolor=lightgreen, label="结束"];
+    start -> readFile;
+    readFile -> init;
+    init -> processLine;
+    processLine -> extractWords;
+    extractWords -> prevWordNull;
+    prevWordNull -> addNode;
+    prevWordNull -> addEdge [label="否"];
+    addEdge -> addNode;
+    addNode -> updatePrevWord;
+    updatePrevWord -> moreWords;
+    moreWords -> extractWords [label="是"];
+    moreWords -> moreLines [label="否"];
+    moreLines -> processLine [label="是"];
+    moreLines -> createMatrix [label="否"];
+    createMatrix -> end;
+}

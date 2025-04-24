@@ -1,0 +1,43 @@
+digraph MainFlow {
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [color=blue];
+    rankdir=TB;
+
+    start [shape=oval, fillcolor=lightgreen, label="开始"];
+    showMenu [label="显示功能菜单"];
+    getChoice [label="获取用户选择"];
+    checkExit [shape=diamond, fillcolor=lightyellow, label="选择是否为0(退出)?"];
+    exit [label="显示退出信息并关闭Scanner"];
+    checkChoice [shape=diamond, fillcolor=lightyellow, label="选择是哪个功能?", width=2];
+    buildGraph [label="1. 从文件构建有向图"];
+    showGraph [label="2. 显示有向图"];
+    queryBridge [label="3. 查询桥接词"];
+    generateText [label="4. 根据桥接词生成新文本"];
+    calcPath [label="5. 计算两个单词之间的最短路径"];
+    calcPR [label="6. 计算单词的PageRank值"];
+    randomWalk [label="7. 随机游走"];
+    invalidChoice [label="显示无效选择信息"];
+    end [shape=oval, fillcolor=lightgreen, label="结束"];
+    start -> showMenu;
+    showMenu -> getChoice;
+    getChoice -> checkExit;
+    checkExit -> exit [label="是"];
+    checkExit -> checkChoice [label="否"];
+    checkChoice -> buildGraph [label="1"];
+    checkChoice -> showGraph [label="2"];
+    checkChoice -> queryBridge [label="3"];
+    checkChoice -> generateText [label="4"];
+    checkChoice -> calcPath [label="5"];
+    checkChoice -> calcPR [label="6"];
+    checkChoice -> randomWalk [label="7"];
+    checkChoice -> invalidChoice [label="其他"];
+    buildGraph -> showMenu;
+    showGraph -> showMenu;
+    queryBridge -> showMenu;
+    generateText -> showMenu;
+    calcPath -> showMenu;
+    calcPR -> showMenu;
+    randomWalk -> showMenu;
+    invalidChoice -> showMenu;
+    exit -> end;
+}

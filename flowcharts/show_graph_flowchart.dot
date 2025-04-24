@@ -1,0 +1,29 @@
+digraph ShowGraph {
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [color=blue];
+    rankdir=TB;
+
+    start [shape=oval, fillcolor=lightgreen, label="开始"];
+    checkEmpty [shape=diamond, fillcolor=lightyellow, label="图是否为空?"];
+    showError [label="显示错误信息"];
+    showNodes [label="显示图中节点"];
+    showEdges [label="显示图中边"];
+    generateDot [label="生成DOT文件"];
+    runGraphviz [label="运行Graphviz"];
+    checkSuccess [shape=diamond, fillcolor=lightyellow, label="Graphviz\n执行成功?"];
+    showImage [label="显示生成的SVG图像"];
+    showErrorInfo [label="显示错误信息"];
+    end [shape=oval, fillcolor=lightgreen, label="结束"];
+    start -> checkEmpty;
+    checkEmpty -> showError [label="是"];
+    checkEmpty -> showNodes [label="否"];
+    showNodes -> showEdges;
+    showEdges -> generateDot;
+    generateDot -> runGraphviz;
+    runGraphviz -> checkSuccess;
+    checkSuccess -> showImage [label="是"];
+    checkSuccess -> showErrorInfo [label="否"];
+    showImage -> end;
+    showErrorInfo -> end;
+    showError -> end;
+}

@@ -1,0 +1,40 @@
+digraph RandomWalk {
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [color=blue];
+    rankdir=TB;
+
+    start [shape=oval, fillcolor=lightgreen, label="开始"];
+    checkEmpty [shape=diamond, fillcolor=lightyellow, label="图是否为空?"];
+    returnEmpty [label="返回：图为空，无法随机游走"];
+    initVisited [label="初始化已访问边集合"];
+    initPath [label="初始化路径"];
+    selectStart [label="随机选择起始节点"];
+    addToPath [label="将当前节点添加到路径"];
+    findNeighbors [label="获取当前节点的所有出边"];
+    checkNeighbors [shape=diamond, fillcolor=lightyellow, label="是否有出边?"];
+    selectNext [label="随机选择下一个节点"];
+    checkVisited [shape=diamond, fillcolor=lightyellow, label="边是否已访问?"];
+    markVisited [label="标记边为已访问"];
+    updateCurrent [label="更新当前节点"];
+    saveToFile [label="将路径保存到文件"];
+    returnPath [label="返回随机游走路径"];
+    end [shape=oval, fillcolor=lightgreen, label="结束"];
+    start -> checkEmpty;
+    checkEmpty -> returnEmpty [label="是"];
+    checkEmpty -> initVisited [label="否"];
+    initVisited -> initPath;
+    initPath -> selectStart;
+    selectStart -> addToPath;
+    addToPath -> findNeighbors;
+    findNeighbors -> checkNeighbors;
+    checkNeighbors -> saveToFile [label="否"];
+    checkNeighbors -> selectNext [label="是"];
+    selectNext -> checkVisited;
+    checkVisited -> saveToFile [label="是"];
+    checkVisited -> markVisited [label="否"];
+    markVisited -> updateCurrent;
+    updateCurrent -> addToPath;
+    saveToFile -> returnPath;
+    returnPath -> end;
+    returnEmpty -> end;
+}

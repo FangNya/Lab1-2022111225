@@ -5,11 +5,11 @@ import java.util.regex.Pattern;
 
 public class DirectedGraph {
     // 图的数据结构定义
-    private final Map<String, Integer> wordToIndex; // 单词到索引的映射
-    private final java.util.List<String> indexToWord; // 索引到单词的映射
-    private int[][] adjacencyMatrix; // 邻接矩阵
-    private final java.util.List<java.util.List<Integer>> adjacencyList; // 邻接表
-    private final Random random = new Random();
+    public final Map<String, Integer> wordToIndex; // 单词到索引的映射
+    public final java.util.List<String> indexToWord; // 索引到单词的映射
+    public int[][] adjacencyMatrix; // 邻接矩阵
+    public final java.util.List<java.util.List<Integer>> adjacencyList; // 邻接表
+    public final Random random = new Random();
 
     /**
      * 构造函数
@@ -48,7 +48,7 @@ public class DirectedGraph {
         }
         
         // 使用Graphviz生成图像
-        generateGraphvizImage(G, "directed_graph.svg");
+        generateGraphvizImage(G, "directed_graph.png");
     }
     
     /**
@@ -92,10 +92,6 @@ public class DirectedGraph {
         String dotFilePath = "graph.dot";
         generateDotFile(G, dotFilePath);
         
-        // 打印DOT文件内容供用户检查
-        // System.out.println("\nDOT文件内容：");
-        // printDotFileContent(dotFilePath);
-        
         // Graphviz可执行文件路径
         String graphvizPath = "D:\\Apps\\Tools\\Graphviz-12.2.1-win64\\bin\\dot.exe"; // 默认为空，表示从PATH中查找
         
@@ -106,42 +102,119 @@ public class DirectedGraph {
             // 根据操作系统设置命令
             if (System.getProperty("os.name").toLowerCase().contains("windows")) {
                 // 如果提供了Graphviz路径，则使用，否则从PATH中查找
-                pb.command("cmd.exe", "/c", graphvizPath, "-Tsvg", dotFilePath, "-o", outputImagePath);
+                pb.command("cmd.exe", "/c", graphvizPath, "-Tpng", dotFilePath, "-o", outputImagePath);
             } else {
                 // 对于Unix/Linux/Mac系统
                 String dotCmd = graphvizPath + "/dot";
-                pb.command(dotCmd, "-Tsvg", dotFilePath, "-o", outputImagePath);
+                pb.command(dotCmd, "-Tpng", dotFilePath, "-o", outputImagePath);
             }
             
-            Process process = pb.start();
+            // 启动进程
+            final Process process = pb.start();
+            System.out.println("Graphviz进程已启动");
             
-            // 获取命令执行的错误信息
-            StringBuilder errorInfo = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    errorInfo.append(line).append("\n");
+            // 创建一个线程监控进程执行时间
+            final boolean[] completed = {false};
+            Thread watchdog = new Thread(() -> {
+                try {
+                    // 等待最多2秒
+                    if (process.waitFor(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                        completed[0] = true;
+                    } else {
+                        // 超时，需要终止dot.exe进程
+                        System.err.println("\n⚠️ 警告: 图形绘制超时（超过2秒）");
+                        
+                        // 首先尝试终止当前进程
+                        process.destroyForcibly();
+                        
+                        // 在Windows系统上，专门查找和终止所有dot.exe进程
+                        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                            try {
+                                // 使用taskkill命令终止所有dot.exe进程
+                                ProcessBuilder killPb = new ProcessBuilder("taskkill", "/F", "/IM", "dot.exe");
+                                Process killProcess = killPb.start();
+                                
+                                // 获取命令输出
+                                StringBuilder output = new StringBuilder();
+                                try (BufferedReader reader = new BufferedReader(new InputStreamReader(killProcess.getInputStream()))) {
+                                    String line;
+                                    while ((line = reader.readLine()) != null) {
+                                        output.append(line).append("\n");
+                                    }
+                                }
+                                
+                                // 获取命令错误
+                                StringBuilder error = new StringBuilder();
+                                try (BufferedReader reader = new BufferedReader(new InputStreamReader(killProcess.getErrorStream()))) {
+                                    String line;
+                                    while ((line = reader.readLine()) != null) {
+                                        error.append(line).append("\n");
+                                    }
+                                }
+                                
+                                // 等待taskkill命令执行完成
+                                killProcess.waitFor();
+                                
+                                // 输出终止结果
+                                if (output.length() > 0) {
+                                    System.err.println("终止dot.exe进程结果: " + output.toString().trim());
+                                }
+                                if (error.length() > 0) {
+                                    System.err.println("终止dot.exe进程错误: " + error.toString().trim());
+                                }
+                                
+                                System.err.println("已尝试终止所有dot.exe进程");
+                            } catch (Exception e) {
+                                System.err.println("终止dot.exe进程失败: " + e.getMessage());
+                            }
+                        }
+                        
+                        System.err.println("图形可能过于复杂，无法绘制。");
+                        System.err.println("DOT文件已保存至: " + new File(dotFilePath).getAbsolutePath());
+                        System.err.println("您可以尝试使用其他Graphviz布局引擎（如neato或fdp）或增加超时时间来绘制此图。");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            
+            watchdog.start();
+            
+            try {
+                watchdog.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            if (completed[0]) {
+                // 获取命令执行的错误信息
+                StringBuilder errorInfo = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        errorInfo.append(line).append("\n");
+                    }
+                }
+                
+                // 等待进程执行完成
+                int exitCode = process.exitValue();
+                
+                if (exitCode == 0) {
+                    System.out.println("有向图已生成并保存为PNG文件: " + outputImagePath);
+                    System.out.println("DOT文件已保留: " + new File(dotFilePath).getAbsolutePath());
+                } else {
+                    System.err.println("Graphviz执行失败，错误代码: " + exitCode);
+                    System.err.println("错误信息: " + errorInfo.toString());
+                    System.err.println("请确保已安装Graphviz并将其添加到系统PATH中");
+                    System.err.println("或在程序中设置graphvizPath变量为Graphviz的安装路径");
+                    System.err.println("可从https://graphviz.org/download/下载Graphviz");
+                    
+                    // 尝试使用备选方法 - 直接打开DOT文件并请求用户使用Graphviz处理
+                    System.err.println("\n您可以手动使用Graphviz处理生成的DOT文件: " + new File(dotFilePath).getAbsolutePath());
+                    System.err.println("命令示例: dot -Tpng " + dotFilePath + " -o " + outputImagePath);
                 }
             }
-            
-            // 等待进程执行完成
-            int exitCode = process.waitFor();
-            
-            if (exitCode == 0) {
-                System.out.println("有向图已生成并保存为SVG文件: " + outputImagePath);
-                System.out.println("DOT文件已保留: " + new File(dotFilePath).getAbsolutePath());
-            } else {
-                System.err.println("Graphviz执行失败，错误代码: " + exitCode);
-                System.err.println("错误信息: " + errorInfo.toString());
-                System.err.println("请确保已安装Graphviz并将其添加到系统PATH中");
-                System.err.println("或在程序中设置graphvizPath变量为Graphviz的安装路径");
-                System.err.println("可从https://graphviz.org/download/下载Graphviz");
-                
-                // 尝试使用备选方法 - 直接打开DOT文件并请求用户使用Graphviz处理
-                System.err.println("\n您可以手动使用Graphviz处理生成的DOT文件: " + new File(dotFilePath).getAbsolutePath());
-                System.err.println("命令示例: dot -Tsvg " + dotFilePath + " -o " + outputImagePath);
-            }
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             System.err.println("执行Graphviz命令时出错: " + e.getMessage());
             System.err.println("请确保已安装Graphviz并将其添加到系统PATH中");
             System.err.println("或在程序中设置graphvizPath变量为Graphviz的安装路径");
@@ -150,7 +223,7 @@ public class DirectedGraph {
             // 保留DOT文件以便用户手动处理
             System.err.println("\n已保留DOT文件: " + new File(dotFilePath).getAbsolutePath());
             System.err.println("您可以手动使用Graphviz处理它");
-            System.err.println("命令示例: dot -Tsvg " + dotFilePath + " -o " + outputImagePath);
+            System.err.println("命令示例: dot -Tpng " + dotFilePath + " -o " + outputImagePath);
         }
     }
 
@@ -470,8 +543,6 @@ public class DirectedGraph {
         
         distance[startIndex] = 0;
         
-        int closestIndex = -1;
-        
         for (int i = 0; i < n; i++) {
             // 找到距离最小的未访问节点
             int minIndex = -1;
@@ -490,12 +561,6 @@ public class DirectedGraph {
             
             visited[minIndex] = true;
             
-            // 如果找到了一个非起始单词，记录它
-            if (minIndex != startIndex && closestIndex == -1) {
-                closestIndex = minIndex;
-                break; // 找到一个就够了
-            }
-            
             // 更新相邻节点的距离
             for (int j = 0; j < n; j++) {
                 if (adjacencyMatrix[minIndex][j] > 0 && !visited[j]) {
@@ -509,15 +574,27 @@ public class DirectedGraph {
             }
         }
         
+        // 收集所有可达的非起始节点
+        List<Integer> reachableNodes = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            if (i != startIndex && distance[i] != Integer.MAX_VALUE) {
+                reachableNodes.add(i);
+            }
+        }
+        
         // 如果没有找到任何可达的其他单词
-        if (closestIndex == -1) {
+        if (reachableNodes.isEmpty()) {
             return "从 \"" + startWord + "\" 无法到达任何其他单词!";
         }
         
+        // 随机选择一个可达节点
+        int randomIndex = random.nextInt(reachableNodes.size());
+        int targetIndex = reachableNodes.get(randomIndex);
+        
         // 构建路径
-        String endWord = indexToWord.get(closestIndex);
+        String endWord = indexToWord.get(targetIndex);
         java.util.List<Integer> path = new ArrayList<>();
-        int current = closestIndex;
+        int current = targetIndex;
         
         while (current != -1) {
             path.add(current);
@@ -526,7 +603,7 @@ public class DirectedGraph {
         
         Collections.reverse(path);
         
-        StringBuilder result = new StringBuilder("从 \"" + startWord + "\" 到 \"" + endWord + "\" 的最短路径是: ");
+        StringBuilder result = new StringBuilder("从 \"" + startWord + "\" 到 随机选择的单词 \"" + endWord + "\" 的最短路径是: ");
         
         for (int i = 0; i < path.size(); i++) {
             result.append(indexToWord.get(path.get(i)));
@@ -615,41 +692,90 @@ public class DirectedGraph {
         // 随机选择起始节点
         int currentIndex = random.nextInt(indexToWord.size());
         String currentWord = indexToWord.get(currentIndex);
+        System.out.println("随机游走开始，起始单词：" + currentWord);
         path.append(currentWord);
         
-        while (true) {
-            // 获取当前节点的所有出边
-            java.util.List<Integer> neighbors = new ArrayList<>();
-            for (int i = 0; i < indexToWord.size(); i++) {
-                if (adjacencyMatrix[currentIndex][i] > 0) {
-                    neighbors.add(i);
+        // 创建一个标志，用于用户中断游走
+        final boolean[] shouldStop = {false};
+        
+        // 创建一个线程监听用户输入
+        Thread inputThread = new Thread(() -> {
+            try {
+                System.out.println("游走过程中，随时按回车键停止游走...");
+                System.in.read();
+                shouldStop[0] = true;
+                // 清空输入缓冲区
+                while (System.in.available() > 0) {
+                    System.in.read();
                 }
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            
-            // 如果没有出边，结束游走
-            if (neighbors.isEmpty()) {
-                break;
+        });
+        inputThread.setDaemon(true); // 设置为守护线程，主线程结束时自动结束
+        inputThread.start();
+        
+        // 记录总步数
+        int steps = 0;
+        
+        // 显示起始单词
+        System.out.print("游走路径: " + currentWord);
+        
+        try {
+            while (!shouldStop[0]) {  // 检查用户是否要求停止
+                steps++;
+                
+                // 获取当前节点的所有出边
+                java.util.List<Integer> neighbors = new ArrayList<>();
+                for (int i = 0; i < indexToWord.size(); i++) {
+                    if (adjacencyMatrix[currentIndex][i] > 0) {
+                        neighbors.add(i);
+                    }
+                }
+                
+                // 如果没有出边，结束游走
+                if (neighbors.isEmpty()) {
+                    System.out.println("\n当前节点没有出边，游走结束。");
+                    break;
+                }
+                
+                // 随机选择一条边
+                int nextIndex = neighbors.get(random.nextInt(neighbors.size()));
+                String nextWord = indexToWord.get(nextIndex);
+                
+                // 检查边是否已访问过
+                String edge = currentIndex + "-" + nextIndex;
+                if (visitedEdges.contains(edge)) {
+                    System.out.println("\n发现重复边：" + currentWord + " -> " + nextWord + "，游走结束。");
+                    break;
+                }
+                
+                // 标记边为已访问
+                visitedEdges.add(edge);
+                
+                // 更新路径
+                path.append(" -> ").append(nextWord);
+                
+                // 在同一行显示当前步骤
+                System.out.print(" -> " + nextWord);
+                
+                // 更新当前节点
+                currentIndex = nextIndex;
+                currentWord = nextWord;
+                
+                // 添加延迟，使游走不会太快
+                Thread.sleep(1000);  // 1秒延迟
             }
-            
-            // 随机选择一条边
-            int nextIndex = neighbors.get(random.nextInt(neighbors.size()));
-            String nextWord = indexToWord.get(nextIndex);
-            
-            // 检查边是否已访问过
-            String edge = currentIndex + "-" + nextIndex;
-            if (visitedEdges.contains(edge)) {
-                // 如果边已经访问过，结束游走
-                break;
-            }
-            
-            // 标记边为已访问
-            visitedEdges.add(edge);
-            
-            // 更新当前节点和路径
-            path.append(" -> ").append(nextWord);
-            currentIndex = nextIndex;
-            currentWord = nextWord;
+        } catch (InterruptedException e) {
+            System.out.println("\n游走被中断。");
         }
+        
+        if (shouldStop[0]) {
+            System.out.println("\n用户手动停止了游走。");
+        }
+        
+        System.out.println("\n随机游走完成，共" + steps + "步。");
+        System.out.println("完整路径：" + path.toString());
         
         // 将游走路径写入文件
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("random_walk_path.txt"))) {

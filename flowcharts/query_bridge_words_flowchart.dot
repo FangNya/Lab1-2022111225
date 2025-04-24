@@ -1,0 +1,37 @@
+digraph QueryBridgeWords {
+    node [shape=box, style=filled, fillcolor=lightblue];
+    edge [color=blue];
+    rankdir=TB;
+
+    start [shape=oval, fillcolor=lightgreen, label="开始"];
+    convertCase [label="转换单词为小写"];
+    checkWord1 [shape=diamond, fillcolor=lightyellow, label="word1是否在图中?"];
+    checkWord2 [shape=diamond, fillcolor=lightyellow, label="word2是否在图中?"];
+    errorBoth [label="返回：两个单词都不在图中"];
+    errorWord1 [label="返回：word1不在图中"];
+    errorWord2 [label="返回：word2不在图中"];
+    findBridges [label="寻找桥接词(从word1可达且可达word2)"];
+    checkEmpty [shape=diamond, fillcolor=lightyellow, label="桥接词列表为空?"];
+    returnNone [label="返回：没有桥接词"];
+    checkOne [shape=diamond, fillcolor=lightyellow, label="只有一个桥接词?"];
+    returnOne [label="返回：唯一的桥接词"];
+    returnMultiple [label="返回：多个桥接词"];
+    end [shape=oval, fillcolor=lightgreen, label="结束"];
+    start -> convertCase;
+    convertCase -> checkWord1;
+    checkWord1 -> checkWord2 [label="是"];
+    checkWord1 -> errorWord1 [label="否"];
+    checkWord2 -> findBridges [label="是"];
+    checkWord2 -> errorWord2 [label="否"];
+    findBridges -> checkEmpty;
+    checkEmpty -> returnNone [label="是"];
+    checkEmpty -> checkOne [label="否"];
+    checkOne -> returnOne [label="是"];
+    checkOne -> returnMultiple [label="否"];
+    errorBoth -> end;
+    errorWord1 -> end;
+    errorWord2 -> end;
+    returnNone -> end;
+    returnOne -> end;
+    returnMultiple -> end;
+}
