@@ -632,8 +632,8 @@ public class DirectedGraph {
         double[] PR = new double[n];
         double[] newPR = new double[n];
         
-        // 初始化PageRank值
-        Arrays.fill(PR, 1.0 / n);
+        // 使用TF-IDF初始化PageRank值
+        initializePRWithTFIDF(PR);
         
         // 迭代计算PageRank，直到收敛
         double diff;
@@ -643,19 +643,33 @@ public class DirectedGraph {
             // 计算新的PageRank值
             for (int i = 0; i < n; i++) {
                 newPR[i] = (1 - d) / n;
+            }
+            
+            // 找出所有出度为0的节点
+            List<Integer> zeroOutDegreeNodes = new ArrayList<>();
+            for (int j = 0; j < n; j++) {
+                int outDegree = 0;
+                for (int k = 0; k < n; k++) {
+                    outDegree += adjacencyMatrix[j][k];
+                }
                 
-                for (int j = 0; j < n; j++) {
-                    if (adjacencyMatrix[j][i] > 0) {
-                        // 计算j的出度
-                        int outDegree = 0;
-                        for (int k = 0; k < n; k++) {
-                            outDegree += adjacencyMatrix[j][k];
-                        }
-                        
-                        if (outDegree > 0) {
+                if (outDegree == 0) {
+                    zeroOutDegreeNodes.add(j);
+                } else {
+                    // 对于出度不为0的节点，正常计算贡献
+                    for (int i = 0; i < n; i++) {
+                        if (adjacencyMatrix[j][i] > 0) {
                             newPR[i] += d * PR[j] * adjacencyMatrix[j][i] / outDegree;
                         }
                     }
+                }
+            }
+            
+            // 处理出度为0的节点，将其PR值均分给其他所有节点
+            for (int j : zeroOutDegreeNodes) {
+                double contribution = d * PR[j] / n;
+                for (int i = 0; i < n; i++) {
+                    newPR[i] += contribution;
                 }
             }
             
@@ -674,6 +688,70 @@ public class DirectedGraph {
         }
         
         return PR[wordToIndex.get(word)];
+    }
+    
+    /**
+     * 使用TF-IDF方法初始化PageRank值
+     * @param PR PageRank数组
+     */
+    private void initializePRWithTFIDF(double[] PR) {
+        int n = indexToWord.size();
+        
+        // 计算Term Frequency (TF)
+        int[] termFrequency = new int[n];
+        int totalTerms = 0;
+        
+        for (int i = 0; i < n; i++) {
+            int inDegree = 0;
+            int outDegree = 0;
+            
+            for (int j = 0; j < n; j++) {
+                inDegree += adjacencyMatrix[j][i];
+                outDegree += adjacencyMatrix[i][j];
+            }
+            
+            // 使用入度和出度的总和作为词频
+            termFrequency[i] = inDegree + outDegree;
+            totalTerms += termFrequency[i];
+        }
+        
+        // 计算Inverse Document Frequency (IDF)
+        // 在图模型中，我们将"文档"概念映射为有多少个不同节点与当前节点相连
+        double[] idf = new double[n];
+        
+        for (int i = 0; i < n; i++) {
+            int connectedNodes = 0;
+            for (int j = 0; j < n; j++) {
+                if (adjacencyMatrix[i][j] > 0 || adjacencyMatrix[j][i] > 0) {
+                    connectedNodes++;
+                }
+            }
+            
+            // 计算IDF，防止除以0
+            if (connectedNodes > 0) {
+                idf[i] = Math.log((double) n / connectedNodes);
+            } else {
+                idf[i] = 0;
+            }
+        }
+        
+        // 计算TF-IDF并归一化
+        double totalTFIDF = 0;
+        for (int i = 0; i < n; i++) {
+            double tf = (double) termFrequency[i] / totalTerms;
+            PR[i] = tf * idf[i];
+            totalTFIDF += PR[i];
+        }
+        
+        // 归一化，确保所有PR值和为1
+        if (totalTFIDF > 0) {
+            for (int i = 0; i < n; i++) {
+                PR[i] /= totalTFIDF;
+            }
+        } else {
+            // 如果所有TF-IDF都为0，则均匀分配
+            Arrays.fill(PR, 1.0 / n);
+        }
     }
 
     /**

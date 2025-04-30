@@ -7,6 +7,7 @@ import java.io.File;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Arrays;
 
 public class GraphGUI extends JFrame {
     private DirectedGraph graph;
@@ -568,11 +569,9 @@ public class GraphGUI extends JFrame {
         });
         
         stopButton.addActionListener(e -> {
-            if (walkInProgress.get() && walkThread != null) {
-                stopRandomWalk();
-                startButton.setEnabled(true);
-                stopButton.setEnabled(false);
-            }
+            stopRandomWalk();
+            startButton.setEnabled(true);
+            stopButton.setEnabled(false);
         });
         
         backButton.addActionListener(e -> {
@@ -687,7 +686,11 @@ public class GraphGUI extends JFrame {
             
             // 获取图的节点
             if (graph.indexToWord.isEmpty()) {
-                SwingUtilities.invokeLater(() -> appendOutput("图为空，无法进行随机游走。\n"));
+                SwingUtilities.invokeLater(() -> {
+                    appendOutput("图为空，无法进行随机游走。\n");
+                    walkInProgress.set(false);
+                    enableStartButton();
+                });
                 return;
             }
             
@@ -760,16 +763,59 @@ public class GraphGUI extends JFrame {
                 appendOutput("\n随机游走完成，共" + finalSteps + "步。\n");
                 appendOutput("完整路径：" + finalPath + "\n");
                 walkInProgress.set(false);
+                enableStartButton();
             });
         });
         
         walkThread.start();
     }
     
+    // 辅助方法，用于启用"开始游走"按钮，禁用"停止游走"按钮
+    private void enableStartButton() {
+        for (Component component : cardsPanel.getComponents()) {
+            if (component instanceof JPanel) {
+                JPanel panel = (JPanel) component;
+                if (panel.getComponentCount() > 0 && panel.getComponent(0) instanceof JLabel) {
+                    JLabel label = (JLabel) panel.getComponent(0);
+                    if ("随机游走".equals(label.getText())) {
+                        // 找到随机游走面板
+                        for (Component c : panel.getComponents()) {
+                            if (c instanceof JPanel) {
+                                // 遍历按钮面板中的按钮
+                                for (Component btn : ((JPanel) c).getComponents()) {
+                                    if (btn instanceof JButton) {
+                                        JButton button = (JButton) btn;
+                                        if ("开始游走".equals(button.getText())) {
+                                            button.setEnabled(true);
+                                        } else if ("停止游走".equals(button.getText())) {
+                                            button.setEnabled(false);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
     private void stopRandomWalk() {
-        walkInProgress.set(false);
-        walkThread.interrupt();
-        appendOutput("\n用户手动停止了游走。\n");
+        if (walkInProgress.get() && walkThread != null) {
+            walkInProgress.set(false);
+            walkThread.interrupt();
+            appendOutput("\n用户手动停止了游走。\n");
+            
+            // 等待线程实际结束
+            try {
+                walkThread.join(1000); // 等待最多1秒钟
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            
+            // 此处不需要手动启用"开始游走"按钮，因为中断的线程会在退出时通过SwingUtilities调用enableStartButton
+        }
     }
     
     private boolean checkGraphExists() {
